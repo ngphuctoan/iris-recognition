@@ -169,27 +169,27 @@ def match_codes(code1, code2, mask1, mask2):
 ## 7/ Phases
 
 ### Phase 0: Create Testing
-- [ ] Thiết lập `pytest` và cấu trúc `tests/`.
-- [ ] Chuẩn bị Benchmark subset (200+ ảnh).
-- [ ] Viết test cho `load_image` (lỗi file, định dạng không hỗ trợ).
+- [x] Thiết lập `pytest` và cấu trúc `tests/`.
+- [x] Chuẩn bị Benchmark subset (200+ ảnh).
+- [x] Viết test cho `load_image` (lỗi file, định dạng không hỗ trợ).
 
 ### Phase A: Building the Core Algorithm
-- [ ] Task 1: Khởi tạo project structure.
-- [ ] Task 2: Implement `io.py` (`load_image`) & `segmentation.py` (`segment_iris`).
-- [ ] Task 3: Implement `normalization.py` (Rubber Sheet logic).
-- [ ] Task 4: Implement `encoding.py` & `matching.py`. **Thêm Debug Plotting** (hiển thị XOR result và IrisCode visualization).
+- [x] Task 1: Khởi tạo project structure.
+- [x] Task 2: Implement `io.py` (`load_image`) & `segmentation.py` (`segment_iris`).
+- [x] Task 3: Implement `normalization.py` (Rubber Sheet logic).
+- [x] Task 4: Implement `encoding.py` & `matching.py`. **Thêm Debug Plotting** (hiển thị XOR result và IrisCode visualization).
 
 ### Phase B: Improving the Accuracy
-- [ ] Task 5: Implement **Eyeline Detector** và **Image Cropping** (Canny + Horizontal Lines).
-- [ ] Task 6: Tối ưu hóa tham số Gabor.
-- [ ] Task 7: Chạy Benchmark diện rộng.
+- [x] Task 5: Implement **Eyeline Detector** và **Image Cropping** (Canny + Horizontal Lines).
+- [x] Task 6: Tối ưu hóa tham số Gabor.
+- [x] Task 7: Chạy Benchmark diện rộng.
 
 ### Phase C: Building the Web Interface
-- [ ] Task 8: Database & SQLModel setup.
-- [ ] Task 9: FastAPI endpoints & Web UI (Premium aesthetics).
+- [x] Task 8: Database & SQLModel setup.
+- [x] Task 9: FastAPI endpoints & Web UI (Premium aesthetics).
 
 ### Phase D: Polish
-- [ ] Task 10: Rà soát comment tiếng Việt & KISS.
+- [x] Task 10: Rà soát comment tiếng Việt & KISS.
 
 ## 8/ Notes + Decisions
 - **Eyeline Detection**: Sử dụng Canny + Horizontal Line cho đến khi gặp điểm nghẽn (bottleneck).

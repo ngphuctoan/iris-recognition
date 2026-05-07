@@ -47,40 +47,52 @@ def segment_iris(img):
     # Mống mắt và đồng tử về mặt sinh học gần như đồng tâm (Concentric)
     px, py, pr = pupil
     
-    # Tìm mống mắt trong ảnh gốc đã làm mờ, giới hạn tâm quanh đồng tử
+    # Sử dụng Canny để tìm biên, nhưng tăng ngưỡng một chút để lọc nhiễu da mặt
+    edges = cv2.Canny(blur, 30, 60)
+    cv2.circle(edges, (int(px), int(py)), int(pr + 10), 0, -1)
+    
     irises = cv2.HoughCircles(
-        blur, 
+        edges, 
         cv2.HOUGH_GRADIENT, 
-        dp=1, 
+        dp=1.2, # Giảm dp để tăng độ chính xác của tâm
         minDist=1, 
         param1=50, 
-        param2=30, 
-        minRadius=int(pr * 1.5), # Mống mắt luôn lớn hơn đồng tử (thường > 2x)
-        maxRadius=int(pr * 4.5)  # Giới hạn để không loang ra vùng da mặt
+        param2=20, # Tăng param2 để tránh bắt các đường cong nhiễu ở vùng da
+        minRadius=int(pr * 1.5), 
+        maxRadius=int(pr * 3.8) # Giới hạn bán kính thực tế hơn (~3.8x đồng tử)
     )
     
     if irises is None:
         # Fallback: Ước lượng mống mắt dựa trên kích thước đồng tử
         iris = (px, py, pr * 2.8)
     else:
-        # Trong các kết quả, chọn vòng tròn có tâm gần đồng tử nhất
+        # Lấy danh sách vòng tròn từ Hough (đã được sắp xếp theo độ tin cậy)
         irises = irises[0]
-        distances = [np.sqrt((c[0]-px)**2 + (c[1]-py)**2) for c in irises]
-        best_idx = np.argmin(distances)
-        best_iris = irises[best_idx]
         
-        # Nếu tâm trôi quá xa (> 20px), ta cưỡng chế mống mắt về cùng tâm với đồng tử
-        if distances[best_idx] > 20:
+        # Tìm vòng tròn đầu tiên (tin cậy nhất) mà có tâm gần đồng tử
+        best_iris = None
+        for cand in irises:
+            dist = np.sqrt((cand[0]-px)**2 + (cand[1]-py)**2)
+            if dist < 30: # Chỉ chấp nhận nếu tâm gần đồng tử
+                best_iris = cand
+                break
+        
+        if best_iris is None:
+            # Nếu không cái nào thỏa mãn, dùng cái đầu tiên và cưỡng chế tâm
+            best_iris = irises[0]
             iris = (px, py, best_iris[2])
         else:
-            iris = best_iris
+            # Cưỡng chế về cùng tâm để Rubber Sheet không bị méo
+            iris = (px, py, best_iris[2])
             
     return tuple(map(float, pupil)), tuple(map(float, iris))
 
 def detect_eyelines(img, pupil, iris):
     """
     Tạo mặt nạ (Mask) để loại bỏ vùng nhiễu từ mí mắt và lông mi.
-    Sử dụng thuật toán Canny để tìm các biên ngang của mí mắt.
+    Đồng thời trả về tọa độ Y của mí mắt để trực quan hóa (đường kẻ màu vàng).
+    
+    Trả về: (mask, eyeline_y_upper, eyeline_y_lower)
     """
     mask = np.ones_like(img, dtype=np.uint8)
     
@@ -89,6 +101,10 @@ def detect_eyelines(img, pupil, iris):
     
     xp, yp, rp = map(int, pupil)
     xi, yi, ri = map(int, iris)
+    
+    # Mặc định mí mắt ở ngoài biên ảnh
+    eyeline_y_upper = 0
+    eyeline_y_lower = img.shape[0]
     
     # Tạo vùng chứa mống mắt (vòng tròn màu trắng trên nền đen)
     iris_mask = np.zeros_like(img, dtype=np.uint8)
@@ -100,15 +116,15 @@ def detect_eyelines(img, pupil, iris):
     if upper_roi.size > 0:
         # Dòng nào có nhiều pixel cạnh nhất thường là đường mí mắt
         row_sums = np.sum(upper_roi, axis=1)
-        eyeline_y = np.argmax(row_sums) + (yi-ri)
-        mask[0:eyeline_y, :] = 0
+        eyeline_y_upper = np.argmax(row_sums) + max(0, yi-ri)
+        mask[0:eyeline_y_upper, :] = 0
         
     # 2. Xử lý mí mắt dưới (Lower Eyelid)
     lower_roi = edges[yp:min(img.shape[0], yi+ri), max(0, xi-ri):min(img.shape[1], xi+ri)]
     if lower_roi.size > 0:
         row_sums = np.sum(lower_roi, axis=1)
-        eyeline_y = np.argmax(row_sums) + yp
-        mask[eyeline_y:, :] = 0
+        eyeline_y_lower = np.argmax(row_sums) + yp
+        mask[eyeline_y_lower:, :] = 0
         
     # Kết hợp mí mắt và vòng tròn mống mắt để có Mask cuối cùng
-    return cv2.bitwise_and(mask, iris_mask)
+    return cv2.bitwise_and(mask, iris_mask), eyeline_y_upper, eyeline_y_lower

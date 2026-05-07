@@ -45,13 +45,20 @@ def get_base64_img(img):
     _, buffer = cv2.imencode('.png', img)
     return base64.b64encode(buffer).decode('utf-8')
 
-def vis_segmentation(img, pupil, iris):
-    """Vẽ vòng tròn đồng tử (Teal) và mống mắt (Royal Blue) lên ảnh gốc."""
+def vis_segmentation(img, pupil, iris, eyelines=None):
+    """Vẽ vòng tròn đồng tử (Teal), mống mắt (Royal Blue) và mí mắt (Vàng)."""
     vis = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
     px, py, pr = map(int, pupil)
     ix, iy, ir = map(int, iris)
     cv2.circle(vis, (ix, iy), ir, (133, 64, 0), 2) # Xanh dương Hoàng gia
     cv2.circle(vis, (px, py), pr, (102, 98, 0), 2) # Màu xanh mòng két
+    
+    if eyelines:
+        y_upper, y_lower = eyelines
+        # Vẽ đường kẻ ngang màu vàng (B:0, G:255, R:255)
+        cv2.line(vis, (0, int(y_upper)), (img.shape[1], int(y_upper)), (0, 255, 255), 1)
+        cv2.line(vis, (0, int(y_lower)), (img.shape[1], int(y_lower)), (0, 255, 255), 1)
+        
     return get_base64_img(vis)
 
 def vis_iriscode(code):
@@ -92,7 +99,7 @@ def process_image(image_bytes: bytes):
     
     # Thực hiện các bước Daugman
     p, i = segment_iris(img)
-    mask_raw = detect_eyelines(img, p, i)
+    mask_raw, y_up, y_down = detect_eyelines(img, p, i)
     norm, norm_mask = normalize_iris(img, p, i, mask=mask_raw)
     code, mask = encode_iris(norm, mask=norm_mask)
     
@@ -102,7 +109,7 @@ def process_image(image_bytes: bytes):
         "code": code,
         "mask": mask,
         "compute_time": compute_time,
-        "vis_seg": vis_segmentation(img, p, i),
+        "vis_seg": vis_segmentation(img, p, i, eyelines=(y_up, y_down)),
         "vis_code": vis_iriscode(code)
     }
 
@@ -236,7 +243,7 @@ async def enroll_sync(
         
         start_time = time.time()
         p, i = segment_iris(img)
-        mask_raw = detect_eyelines(img, p, i)
+        mask_raw, y_up, y_down = detect_eyelines(img, p, i)
         norm, norm_mask = normalize_iris(img, p, i, mask=mask_raw)
         code, mask = encode_iris(norm, mask=norm_mask)
         
@@ -260,7 +267,7 @@ async def enroll_sync(
         return templates.TemplateResponse(request, "enroll.html", {
             "active_page": "enroll",
             "message": f"Đồng bộ thành công mẫu CASIA-{sync_id}.",
-            "vis_seg": vis_segmentation(img, p, i), "vis_code": vis_iriscode(code)
+            "vis_seg": vis_segmentation(img, p, i, eyelines=(y_up, y_down)), "vis_code": vis_iriscode(code)
         })
     except Exception as e:
         return templates.TemplateResponse(request, "enroll.html", {"active_page": "enroll", "error": str(e)})
