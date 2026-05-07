@@ -10,9 +10,9 @@ def test_encode_iris_output():
     
     code, mask = encode_iris(norm_img)
     
-    # IrisCode va Mask phai cung kich thuoc voi anh dau vao
-    assert code.shape == norm_img.shape
-    assert mask.shape == norm_img.shape
+    # IrisCode và Mask phải có kích thước gấp đôi chiều ngang (do gộp bit thực và ảo)
+    assert code.shape == (64, 1024)
+    assert mask.shape == (64, 1024)
     # Phai la mang nhị phân (0 hoac 1)
     assert np.all((code == 0) | (code == 1))
 
