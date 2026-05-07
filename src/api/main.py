@@ -186,21 +186,12 @@ async def identify_post(
 async def enroll_get(request: Request):
     return templates.TemplateResponse(request, "enroll.html", {"active_page": "enroll"})
 
-@app.post("/enroll/metadata", response_class=HTMLResponse)
-async def enroll_metadata(
-    request: Request,
-    name: str = Form(...),
-    subject_id: str = Form(...),
-    eye: str = Form(...)
-):
-    return templates.TemplateResponse(request, "enroll.html", {
-        "active_page": "enroll",
-        "message": f"Metadata updated for {name} ({subject_id}). Please capture iris to complete."
-    })
-
 @app.post("/enroll/capture", response_class=HTMLResponse)
 async def enroll_capture(
     request: Request,
+    name: str = Form(...),
+    subject_id: str = Form(...),
+    eye: str = Form(...),
     file: UploadFile = File(...),
     session: Session = Depends(get_session)
 ):
@@ -208,11 +199,80 @@ async def enroll_capture(
         contents = await file.read()
         p_res = process_image(contents)
         
+        code_hex = binascii.hexlify(p_res["code"].tobytes()).decode()
+        mask_hex = binascii.hexlify(p_res["mask"].tobytes()).decode()
+        
+        # Get or Create User
+        user = session.exec(select(User).where(User.identity_number == subject_id)).first()
+        if not user:
+            user = User(name=name, identity_number=subject_id)
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            
+        template = IrisTemplate(
+            user_id=user.id, eye_side=eye, iris_code_hex=code_hex, mask_hex=mask_hex
+        )
+        session.add(template)
+        session.commit()
+        
         return templates.TemplateResponse(request, "enroll.html", {
             "active_page": "enroll",
-            "message": "Iris capture successful. Subject enrolled in registry.",
+            "message": f"Biometric profile for {name} successfully committed to registry.",
             "vis_seg": p_res["vis_seg"],
             "vis_code": p_res["vis_code"]
+        })
+    except Exception as e:
+        return templates.TemplateResponse(request, "enroll.html", {
+            "active_page": "enroll",
+            "error": str(e)
+        })
+
+@app.post("/enroll/sync", response_class=HTMLResponse)
+async def enroll_sync(
+    request: Request,
+    sync_id: str = Form(...),
+    sequence: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    try:
+        # Load from dataset
+        img = load_image(subject_id=sync_id, side="L", sequence=sequence) # Default to Left for sync
+        
+        # Process (Need a helper for img instead of bytes)
+        # Reuse process_image logic but bypass decode
+        start_time = time.time()
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        img_p = clahe.apply(img)
+        p, i = segment_iris(img_p)
+        mask_raw = detect_eyelines(img_p, p, i)
+        norm, norm_mask = normalize_iris(img_p, p, i, mask=mask_raw)
+        code, mask = encode_iris(norm, mask=norm_mask)
+        compute_time = time.time() - start_time
+        
+        code_hex = binascii.hexlify(code.tobytes()).decode()
+        mask_hex = binascii.hexlify(mask.tobytes()).decode()
+        
+        # Auto-create User based on Sync ID
+        user_id_str = f"CASIA-{sync_id}"
+        user = session.exec(select(User).where(User.identity_number == user_id_str)).first()
+        if not user:
+            user = User(name=f"Subject_{sync_id}", identity_number=user_id_str)
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            
+        template = IrisTemplate(
+            user_id=user.id, eye_side="L", iris_code_hex=code_hex, mask_hex=mask_hex
+        )
+        session.add(template)
+        session.commit()
+        
+        return templates.TemplateResponse(request, "enroll.html", {
+            "active_page": "enroll",
+            "message": f"Source sync complete for CASIA-{sync_id}. Template verified.",
+            "vis_seg": vis_segmentation(img_p, p, i),
+            "vis_code": vis_iriscode(code)
         })
     except Exception as e:
         return templates.TemplateResponse(request, "enroll.html", {

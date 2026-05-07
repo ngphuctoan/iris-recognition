@@ -3,118 +3,112 @@ import numpy as np
 
 def segment_iris(img):
     """
-    Tach dong tu va mong mat su dung Hough Circles.
+    Tách đồng tử và mống mắt sử dụng Hough Circles và Adaptive Thresholding.
     
-    Tham so:
-    - img: Anh grayscale dau vao.
-    
-    Tra ve:
-    - tuple: (pupil_circle, iris_circle) trong do moi circle la (x, y, r).
+    Quy trình:
+    1. Tiền xử lý (Làm mờ).
+    2. Tìm đồng tử (Vùng tối nhất).
+    3. Tìm mống mắt (Vùng bao quanh đồng tử).
     """
     if img is None:
-        raise TypeError("Anh dau vao khong duoc la None")
+        raise TypeError("Ảnh đầu vào không hợp lệ")
         
-    # 1. Lam mo anh de giam nhiễu biên
+    # Bước 1: Làm mờ ảnh để giảm nhiễu, giúp tìm vòng tròn chính xác hơn
     blur = cv2.medianBlur(img, 7)
     
-    # 2. Tim dong tu (vung toi nhat)
-    # Su dung threshold de highlight vung toi
-    _, thresh = cv2.threshold(blur, 60, 255, cv2.THRESH_BINARY_INV)
+    # Bước 2: Tìm đồng tử (Pupil)
+    # Thay vì dùng ngưỡng cố định, ta lấy vùng tối nhất của ảnh làm gợi ý
+    min_val, _, min_loc, _ = cv2.minMaxLoc(blur)
     
-    # Tim dong tu trong vung thresh
+    # Tạo ngưỡng thích nghi dựa trên giá trị tối nhất để tách đồng tử
+    # Đồng tử thường rất tối (gần 0), ta lấy biên trên là min + 30
+    thresh_val = min_val + 30 
+    _, thresh = cv2.threshold(blur, thresh_val, 255, cv2.THRESH_BINARY_INV)
+    
+    # Tìm vòng tròn đồng tử trong vùng đã tách ngưỡng nhị phân
     pupils = cv2.HoughCircles(
         thresh, 
         cv2.HOUGH_GRADIENT, 
         dp=1, 
         minDist=200,
         param1=50, 
-        param2=10, # Threshold nho hon vi thresh da loai bo nhieu nhiễu
+        param2=10, # Ngưỡng tích lũy thấp vì ảnh đã sạch nhiễu sau threshold
         minRadius=20, 
         maxRadius=100
     )
     
     if pupils is None:
-        # Fallback neu thresh failed
-        pupils = cv2.HoughCircles(blur, cv2.HOUGH_GRADIENT, 1, 200, param1=50, param2=30, minRadius=20, maxRadius=100)
-        
-    if pupils is None:
-        pupil = (img.shape[1]//2, img.shape[0]//2, 50)
+        # Nếu Hough thất bại, dùng vị trí tối nhất làm tâm mặc định
+        pupil = (float(min_loc[0]), float(min_loc[1]), 50.0)
     else:
         pupil = pupils[0][0]
         
-    # 3. Tim mong mat (vung bao quanh dong tu)
-    # Su dung tam cua dong tu de gioi han vung tim kiem (gan nhu dong tam)
+    # Bước 3: Tìm mống mắt (Iris)
+    # Mống mắt và đồng tử về mặt sinh học gần như đồng tâm (Concentric)
     px, py, pr = pupil
+    
+    # Tìm mống mắt trong ảnh gốc đã làm mờ, giới hạn tâm quanh đồng tử
     irises = cv2.HoughCircles(
         blur, 
         cv2.HOUGH_GRADIENT, 
         dp=1, 
-        minDist=200,
+        minDist=1, 
         param1=50, 
         param2=30, 
-        minRadius=int(pr * 2), # Mong mat it nhat gap doi dong tu
-        maxRadius=300
+        minRadius=int(pr * 1.5), # Mống mắt luôn lớn hơn đồng tử (thường > 2x)
+        maxRadius=int(pr * 4.5)  # Giới hạn để không loang ra vùng da mặt
     )
     
     if irises is None:
-        iris = (px, py, pr * 3)
+        # Fallback: Ước lượng mống mắt dựa trên kích thước đồng tử
+        iris = (px, py, pr * 2.8)
     else:
-        # Chon hinh tron co tam gan dong tu nhat trong so cac ket qua
-        best_iris = irises[0][0]
-        min_dist = np.sqrt((best_iris[0] - px)**2 + (best_iris[1] - py)**2)
+        # Trong các kết quả, chọn vòng tròn có tâm gần đồng tử nhất
+        irises = irises[0]
+        distances = [np.sqrt((c[0]-px)**2 + (c[1]-py)**2) for c in irises]
+        best_idx = np.argmin(distances)
+        best_iris = irises[best_idx]
         
-        for cand in irises[0]:
-            dist = np.sqrt((cand[0] - px)**2 + (cand[1] - py)**2)
-            # Neu tam qua xa dong tu (> 50px), co the la nham
-            if dist < min_dist and dist < 50:
-                min_dist = dist
-                best_iris = cand
-        
-        # Neu best_iris van qua xa, dung gia tri mac dinh nhung giu tam dong tu
-        dist = np.sqrt((best_iris[0] - px)**2 + (best_iris[1] - py)**2)
-        if dist > 50:
+        # Nếu tâm trôi quá xa (> 20px), ta cưỡng chế mống mắt về cùng tâm với đồng tử
+        if distances[best_idx] > 20:
             iris = (px, py, best_iris[2])
         else:
             iris = best_iris
-        
+            
     return tuple(map(float, pupil)), tuple(map(float, iris))
 
 def detect_eyelines(img, pupil, iris):
     """
-    Phat hien mi mat va long mi de tao mat na mask.
-    Su dung Canny + Horizontal lines (KISS).
+    Tạo mặt nạ (Mask) để loại bỏ vùng nhiễu từ mí mắt và lông mi.
+    Sử dụng thuật toán Canny để tìm các biên ngang của mí mắt.
     """
     mask = np.ones_like(img, dtype=np.uint8)
     
-    # 1. Su dung Canny de tim cac canh (long mi, mi mat)
+    # Tìm các cạnh biên trong ảnh
     edges = cv2.Canny(img, 100, 200)
     
-    # 2. Tap trung vao vung ben tren va ben duoi dong tu
-    # Mi mat thuong xuat hien o phia tren va phia duoi
     xp, yp, rp = map(int, pupil)
     xi, yi, ri = map(int, iris)
     
-    # Tao vung quan tam (ROI) la hinh tron mong mat
+    # Tạo vùng chứa mống mắt (vòng tròn màu trắng trên nền đen)
     iris_mask = np.zeros_like(img, dtype=np.uint8)
     cv2.circle(iris_mask, (xi, yi), ri, 255, -1)
     
-    # 3. Tim mi mat tren (upper eyelid)
-    # Don gian hoa: Tim cac canh nam ngang phia tren dong tu
+    # 1. Xử lý mí mắt trên (Upper Eyelid)
+    # Cắt vùng phía trên đồng tử để tìm đường mí mắt
     upper_roi = edges[max(0, yi-ri):yp, max(0, xi-ri):min(img.shape[1], xi+ri)]
     if upper_roi.size > 0:
-        # Lay dong co nhieu canh nhat lam duong bien mi mat
+        # Dòng nào có nhiều pixel cạnh nhất thường là đường mí mắt
         row_sums = np.sum(upper_roi, axis=1)
         eyeline_y = np.argmax(row_sums) + (yi-ri)
         mask[0:eyeline_y, :] = 0
         
-    # 4. Tim mi mat duoi (lower eyelid)
+    # 2. Xử lý mí mắt dưới (Lower Eyelid)
     lower_roi = edges[yp:min(img.shape[0], yi+ri), max(0, xi-ri):min(img.shape[1], xi+ri)]
     if lower_roi.size > 0:
         row_sums = np.sum(lower_roi, axis=1)
         eyeline_y = np.argmax(row_sums) + yp
         mask[eyeline_y:, :] = 0
         
-    # Ket hop voi vung hinh tron mong mat
-    final_mask = cv2.bitwise_and(mask, iris_mask)
-    
-    return final_mask
+    # Kết hợp mí mắt và vòng tròn mống mắt để có Mask cuối cùng
+    return cv2.bitwise_and(mask, iris_mask)
