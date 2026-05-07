@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="flex flex-col gap-4">
+    <section class="border border-obsidian/10 bg-white shadow-sm overflow-hidden w-full">
+        <div class="p-2 border-b border-obsidian/10 bg-bone/50 flex justify-between items-center">
+            <span class="text-[10px] font-bold uppercase tracking-widest">Biometric Registry</span>
+            <span class="text-[10px] font-mono text-slate-muted uppercase tracking-tighter">Total_Subjects: {{ subjects|length }}</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm border-collapse min-w-[600px]">
+                <thead>
+                    <tr class="border-b border-obsidian/5 bg-bone/20 text-[10px] uppercase font-bold text-slate-muted">
+                        <th class="p-4">Subject Name</th>
+                        <th class="p-4">Identity ID</th>
+                        <th class="p-4">Ocular Profile</th>
+                        <th class="p-4 text-right">Verification Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-obsidian/5">
+                    {% for subject in subjects %}
+                    <tr class="hover:bg-bone transition-colors">
+                        <td class="p-4 font-bold">{{ subject.name }}</td>
+                        <td class="p-4 font-mono text-slate-muted text-[10px]">{{ subject.subject_id }}</td>
+                        <td class="p-4">
+                            {% if subject.has_left %}
+                            <span class="bg-royal text-bone px-2 py-0.5 text-[10px] font-bold">LEFT</span>
+                            {% endif %}
+                            {% if subject.has_right %}
+                            <span class="bg-obsidian/5 text-slate-muted px-2 py-0.5 text-[10px] font-bold">RIGHT</span>
+                            {% endif %}
+                        </td>
+                        <td class="p-4 text-right">
+                            <span class="text-[10px] font-bold text-teal-success uppercase border border-teal-success/30 px-2 py-0.5">Verified</span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="p-8 text-center text-slate-muted text-[10px] font-bold uppercase tracking-widest">
+                            No biometric records found in registry.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}

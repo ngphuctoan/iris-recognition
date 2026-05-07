@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IrisGuard v3.0 | Biometric Terminal</title>
+    
+    <!-- Fonts: Overpass (Sans & Mono) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Overpass:ital,wght@0,100..900;1,100..900&family=Overpass+Mono:wght@300..700&display=swap" rel="stylesheet">
+    
+    <!-- Icons: RemixIcon -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    
+    <!-- Tailwind CSS v4 -->
+    <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+    
+    <style type="text/tailwindcss">
+        @theme {
+            --color-bone: #fcfcfc;
+            --color-royal: #004085;
+            --color-obsidian: #2d3436;
+            --color-slate-muted: #636e72;
+            --color-teal-success: #006266;
+            --color-crimson-error: #b71540;
+            
+            --font-overpass: "Overpass", sans-serif;
+            --font-overpass-mono: "Overpass Mono", monospace;
+        }
+
+        @layer base {
+            body {
+                @apply bg-bone text-obsidian font-overpass antialiased selection:bg-royal selection:text-white;
+            }
+            
+            /* Spatial Constraints */
+            .p-max-4 { @apply p-4; }
+            .m-max-4 { @apply m-4; }
+            
+            /* Typography Floor */
+            .text-floor { font-size: 10px; }
+        }
+
+        @layer components {
+            .nav-link {
+                @apply px-4 flex items-center text-[10px] font-bold uppercase tracking-widest transition-colors h-full border-b-2 border-transparent;
+            }
+            .nav-link-active {
+                @apply bg-royal/5 border-royal text-royal;
+            }
+            .nav-link-inactive {
+                @apply text-slate-muted hover:bg-bone;
+            }
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+    <!-- Top Sticky Header -->
+    <header class="sticky top-0 z-50 bg-white border-b border-obsidian/10 px-6 flex items-center justify-between h-14 flex-shrink-0">
+        <nav class="flex gap-1 h-full">
+            <a href="/identify" class="nav-link {% if active_page == 'identify' %}nav-link-active{% else %}nav-link-inactive{% endif %}">
+                Analysis
+            </a>
+            <a href="/enroll" class="nav-link {% if active_page == 'enroll' %}nav-link-active{% else %}nav-link-inactive{% endif %}">
+                Enrollment
+            </a>
+            <a href="/directory" class="nav-link {% if active_page == 'directory' %}nav-link-active{% else %}nav-link-inactive{% endif %}">
+                Database
+            </a>
+        </nav>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-grow w-full overflow-auto bg-bone/30 p-4">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
