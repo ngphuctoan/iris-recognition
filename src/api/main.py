@@ -144,6 +144,45 @@ async def identify(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@app.post("/enroll_by_id")
+async def enroll_by_id(
+    subject_id: str = Form(...),
+    side: str = Form("L"),
+    sequence: str = Form("00"),
+    name: str = Form(...),
+    identity_number: str = Form(...),
+    session: Session = Depends(get_session)
+):
+    try:
+        # Su dung load_image moi de lay anh tu dataset
+        img = load_image(subject_id=subject_id, side=side, sequence=sequence)
+        
+        # Pipeline (giong process_image nhung img da co san)
+        p, i = segment_iris(img)
+        mask_raw = detect_eyelines(img, p, i)
+        norm, norm_mask = normalize_iris(img, p, i, mask=mask_raw)
+        code, mask = encode_iris(norm, mask=norm_mask)
+        
+        code_hex = binascii.hexlify(code.tobytes()).decode()
+        mask_hex = binascii.hexlify(mask.tobytes()).decode()
+        
+        user = session.exec(select(User).where(User.identity_number == identity_number)).first()
+        if not user:
+            user = User(name=name, identity_number=identity_number)
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            
+        template = IrisTemplate(
+            user_id=user.id, eye_side=side, iris_code_hex=code_hex, mask_hex=mask_hex
+        )
+        session.add(template)
+        session.commit()
+        
+        return {"status": "success", "message": f"Da dang ky {name} tu dataset ID {subject_id}"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 @app.get("/users")
 def list_users(session: Session = Depends(get_session)):
     users = session.exec(select(User)).all()
