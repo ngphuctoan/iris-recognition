@@ -1,0 +1,1 @@
+Final (Demo): Build a Python script using a library like OpenCV or a dataset (e.g., CASIA Iris Image Database). The demo must input a sample eye image, process it to extract the "Iris Code," and match it against a small database of "authorized" users.
