@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IrisGuard - Advanced Biometric System</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>IrisGuard Recognition</h1>
+        
+        <!-- Enrollment Card -->
+        <div class="card">
+            <h2>User Enrollment</h2>
+            <form id="enrollForm">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="name" required placeholder="John Doe">
+                </div>
+                <div class="form-group">
+                    <label>Identity Number</label>
+                    <input type="text" id="id_number" required placeholder="ID-12345">
+                </div>
+                <div class="form-group">
+                    <label>Eye Side</label>
+                    <select id="eye_side">
+                        <option value="L">Left Eye</option>
+                        <option value="R">Right Eye</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Iris Image</label>
+                    <input type="file" id="enrollFile" accept="image/*" required>
+                </div>
+                <button type="submit" class="btn" id="enrollBtn">Register Biometrics</button>
+            </form>
+        </div>
+
+        <!-- Identification Card -->
+        <div class="card">
+            <h2>Identify User</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem;">
+                Upload an iris image to verify identity against the secure database.
+            </p>
+            <div class="drop-zone" id="dropZone">
+                <p>Click or Drag Iris Image Here</p>
+                <input type="file" id="identifyFile" accept="image/*" style="display: none;">
+            </div>
+            <div id="result"></div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
