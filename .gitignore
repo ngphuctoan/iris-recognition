@@ -12,3 +12,6 @@ data
 .pytest_cache
 database.db
 temp/
+*.docx*
+*.odt*
+scratch
