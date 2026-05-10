@@ -25,9 +25,29 @@
             </div>
             
             <div class="w-full border-2 border-dashed border-obsidian/10 p-4 flex flex-col items-center justify-center gap-4 bg-bone hover:border-royal transition-colors group relative">
-                <input type="file" name="file" required class="absolute inset-0 opacity-0 cursor-pointer">
+                <input type="file" id="file-input" name="file" required class="absolute inset-0 opacity-0 cursor-pointer">
                 <i class="ri-upload-cloud-2-line text-[20px] text-slate-muted group-hover:text-royal transition-colors"></i>
                 <span class="text-[10px] font-bold uppercase text-slate-muted">Select Ocular Capture Source</span>
+            </div>
+
+            <!-- PREVIEW CONTAINER -->
+            <div id="preview-card" class="hidden border border-obsidian/10 bg-bone/50 p-3 flex flex-col gap-2">
+                <div class="text-[10px] font-bold uppercase text-slate-muted border-b border-obsidian/10 pb-1">Staged Ocular Sample</div>
+                <div class="flex flex-col md:flex-row gap-4 items-center md:items-start">
+                    <div class="border border-obsidian/10 bg-white p-1 w-full md:w-auto">
+                        <img id="preview-img" class="w-full md:w-32 aspect-square object-cover" src="" alt="Preview">
+                    </div>
+                    <div class="flex flex-col gap-2 justify-center h-full py-1">
+                        <div class="flex flex-col">
+                            <span class="text-[9px] font-bold uppercase text-slate-muted">File Name</span>
+                            <span id="preview-name" class="text-xs font-mono text-obsidian"></span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-[9px] font-bold uppercase text-slate-muted">Staging Date</span>
+                            <span id="preview-date" class="text-xs font-mono text-obsidian"></span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="flex justify-end">
@@ -78,4 +98,38 @@
     </section>
     {% endif %}
 </div>
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const previewCard = document.getElementById('preview-card');
+        const previewImg = document.getElementById('preview-img');
+        const previewName = document.getElementById('preview-name');
+        const previewDate = document.getElementById('preview-date');
+
+        fileInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewImg.src = e.target.result;
+                    previewName.textContent = file.name;
+                    
+                    // Lấy ngày hiện tại
+                    const now = new Date();
+                    const dateStr = now.toLocaleDateString('vi-VN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    previewDate.textContent = dateStr;
+                    
+                    previewCard.classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            } else {
+                previewCard.classList.add('hidden');
+            }
+        });
+    </script>
 {% endblock %}
